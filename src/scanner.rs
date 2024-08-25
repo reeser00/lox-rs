@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::token::Token;
 use crate::token_type::TokenType;
 use crate::literal::Literal;
@@ -10,10 +12,29 @@ pub struct Scanner<'a> {
     start: usize,
     current: usize,
     line: usize,
+    keywords: HashMap<String, TokenType>,
 }
 
 impl<'a> Scanner<'a> {
     pub fn new(source: String, lox: &'a mut Lox) -> Self {
+        let mut keywords: HashMap<String, TokenType> = HashMap::new();
+        keywords.insert(String::from("and"), TokenType::And);
+        keywords.insert(String::from("class"), TokenType::Class);
+        keywords.insert(String::from("else"), TokenType::Else);
+        keywords.insert(String::from("false"), TokenType::False);
+        keywords.insert(String::from("for"), TokenType::For);
+        keywords.insert(String::from("fun"), TokenType::Fun);
+        keywords.insert(String::from("if"), TokenType::If);
+        keywords.insert(String::from("nil"), TokenType::Nil);
+        keywords.insert(String::from("or"), TokenType::Or);
+        keywords.insert(String::from("print"), TokenType::Print);
+        keywords.insert(String::from("return"), TokenType::Return);
+        keywords.insert(String::from("super"), TokenType::Super);
+        keywords.insert(String::from("this"), TokenType::This);
+        keywords.insert(String::from("true"), TokenType::True);
+        keywords.insert(String::from("var"), TokenType::Var);
+        keywords.insert(String::from("while"), TokenType::While);
+
         Self {
             lox,
             source,
@@ -21,6 +42,7 @@ impl<'a> Scanner<'a> {
             start: 0,
             current: 0,
             line: 1,
+            keywords,
         }
     }
 
@@ -86,11 +108,25 @@ impl<'a> Scanner<'a> {
             '\n' => self.line += 1,
             '"' => self.string(),
             _ => {
-                match self.is_digit(c) {
-                    true => self.number(),
-                    false => self.lox.error(self.line, String::from("Unexpected character")),
+                if self.is_digit(c) {
+                    self.number();
+                } else if self.is_alpha(c) {
+                    self.identifier();
+                } else {
+                    self.lox.error(self.line, String::from("Unexpected character"));
                 }
             },
+        }
+    }
+
+    fn identifier(&mut self) {
+        while self.is_alpha_numeric(self.peek()) { self.advance(); };
+        
+        let text: String = String::from(&self.source[self.start..self.current]);
+
+        match self.keywords.get(&text) {
+            Some(token_type) => self.add_token_helper(token_type.clone()),
+            None => self.add_token_helper(TokenType::Identifier),
         }
     }
 
@@ -133,7 +169,7 @@ impl<'a> Scanner<'a> {
         self.advance();
 
         // trimming the surrounding quotes.
-        let value: String = self.source[self.start + 1..self.current + 1].to_string();
+        let value: String = self.source[self.start + 1..self.current - 1].to_string();
         self.add_token(TokenType::String, Literal::String(value));
     }
 
@@ -157,6 +193,16 @@ impl<'a> Scanner<'a> {
             true => '\0',
             false => self.source.as_bytes()[self.current + 1] as char,
         } 
+    }
+
+    fn is_alpha(&self, c: char) -> bool {
+        (c >= 'a' && c <= 'z') ||
+        (c >= 'A' && c <= 'Z') ||
+        c == '_'
+    }
+
+    fn is_alpha_numeric(&self, c: char) -> bool {
+        self.is_alpha(c) || self.is_digit(c)
     }
 
     fn is_digit(&self, c: char) -> bool {
