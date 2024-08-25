@@ -1,4 +1,3 @@
-#[allow(non_camel_case_types)]
 #[derive(Debug, Clone)]
 pub enum TokenType {
     // Single-character tokens
@@ -12,11 +11,11 @@ pub enum TokenType {
     Less, LessEqual,
 
     // Literals
-    Identifier, STRING, Number,
+    Identifier, String, Number,
 
     // KEYWORDS
     And, Class, Else, False, Fun, For, If, Nil, Or, 
     Print, Return, Super, This, True, Var, While,
 
-    EOF
+    Eof
 }

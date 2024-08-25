@@ -1,7 +1,6 @@
-use std::collections::HashMap;
-
-use crate::token::{Token, Literal};
+use crate::token::Token;
 use crate::token_type::TokenType;
+use crate::literal::Literal;
 use crate::Lox;
 
 pub struct Scanner<'a> {
@@ -29,10 +28,10 @@ impl<'a> Scanner<'a> {
         while !self.is_at_end() {
             //starting next lexme
             self.start = self.current;
-            self.scan_tokens();
+            self.scan_token();
         }
 
-        self.tokens.push(Token::from(TokenType::EOF, String::new(), Literal::new(), self.line.clone()));
+        self.tokens.push(Token::from(TokenType::Eof, String::new(), Literal::Empty, self.line.clone()));
         self.tokens.clone()
     }
 
@@ -49,8 +48,119 @@ impl<'a> Scanner<'a> {
             '+' => self.add_token_helper(TokenType::Plus),
             ';' => self.add_token_helper(TokenType::Semicolon),
             '*' => self.add_token_helper(TokenType::Star),
-            _ => self.lox.error(self.line, String::from("Unexpected character.")),
+            '!' => {
+                match self.check_next_char('=') {
+                    true => self.add_token_helper(TokenType::BangEqual),
+                    false => self.add_token_helper(TokenType::Bang),
+                }
+            },
+            '=' => {
+                match self.check_next_char('=') {
+                    true => self.add_token_helper(TokenType::EqualEqual),
+                    false => self.add_token_helper(TokenType::Equal),
+                }
+            },
+            '<' => {
+                match self.check_next_char('=') {
+                    true => self.add_token_helper(TokenType::LessEqual),
+                    false => self.add_token_helper(TokenType::Less),
+                }
+            },
+            '>' => {
+                match self.check_next_char('=') {
+                    true => self.add_token_helper(TokenType::GreaterEqual),
+                    false => self.add_token_helper(TokenType::Greater),
+                }
+            },
+            '/' =>  {
+                match self.check_next_char('/') {
+                    true => {
+                        while self.peek() != '\n' && !self.is_at_end() {
+                            self.advance();
+                        }
+                    }
+                    false => self.add_token_helper(TokenType::Slash),
+                }
+            },
+            ' ' | '\r' | '\t' => (),
+            '\n' => self.line += 1,
+            '"' => self.string(),
+            _ => {
+                match self.is_digit(c) {
+                    true => self.number(),
+                    false => self.lox.error(self.line, String::from("Unexpected character")),
+                }
+            },
         }
+    }
+
+    fn number(&mut self) {
+        while self.is_digit(self.peek()) { self.advance(); }
+
+        // Look for a fractional part.
+        match self.peek() {
+            '.' if self.is_digit(self.peek_next()) => {
+                self.advance();
+
+                while self.is_digit(self.peek()) { self.advance(); }
+            }
+            _ => ()
+        }
+        
+        match self.source[self.start..self.current].parse::<f64>() {
+            Ok(n) => self.add_token(TokenType::Number, Literal::Number(n)),
+            Err(_) => self.lox.error(self.line, String::from("DEBUG: Error parsing a string to a f32 in scanner.number function")),
+        }
+        
+    }
+
+    fn string(&mut self) {
+        while self.peek() != '"' && !self.is_at_end() {
+            match self.peek() {
+                '\n' => self.line += 1,
+                _ => {
+                    self.advance();
+                },
+            }
+        }
+
+        if self.is_at_end() {
+            self.lox.error(self.line, String::from("Unterminated string."));
+            return;
+        }
+
+        // handling the closing '"'.
+        self.advance();
+
+        // trimming the surrounding quotes.
+        let value: String = self.source[self.start + 1..self.current + 1].to_string();
+        self.add_token(TokenType::String, Literal::String(value));
+    }
+
+    fn check_next_char(&mut self, expected: char) -> bool {
+        if self.is_at_end() { return false; }
+        if self.source.as_bytes()[self.current] as char != expected { return false; }
+
+        self.current += 1;
+        true
+    }
+
+    fn peek(&self) -> char {
+        match self.is_at_end() {
+            true => '\0',
+            false => self.source.as_bytes()[self.current] as char,
+        }
+    }
+
+    fn peek_next(&self) -> char {
+        match self.current + 1 >= self.source.len() {
+            true => '\0',
+            false => self.source.as_bytes()[self.current + 1] as char,
+        } 
+    }
+
+    fn is_digit(&self, c: char) -> bool {
+        c >= '0' && c <= '9'
     }
 
     fn is_at_end(&self) -> bool {
@@ -64,7 +174,7 @@ impl<'a> Scanner<'a> {
     }
 
     fn add_token_helper(&mut self, token_type: TokenType) {
-        self.add_token(token_type, Literal::new());
+        self.add_token(token_type, Literal::Empty);
     }
 
     fn add_token(&mut self, token_type: TokenType, literal: Literal) {
