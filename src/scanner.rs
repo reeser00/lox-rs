@@ -95,13 +95,18 @@ impl<'a> Scanner<'a> {
                 }
             },
             '/' =>  {
-                match self.check_next_char('/') {
-                    true => {
-                        while self.peek() != '\n' && !self.is_at_end() {
-                            self.advance();
-                        }
+                if self.check_next_char('/') {
+                    while self.peek() != '\n' && !self.is_at_end() {
+                        self.advance();
                     }
-                    false => self.add_token_helper(TokenType::Slash),
+                } else if self.check_next_char('*') {
+                    while ( self.peek() != '*' || self.peek_next() != '/' ) && !self.is_at_end() {
+                        if self.peek() == '\n' { self.line += 1; }
+                        self.advance();
+                    }
+                    if !self.is_at_end() { self.current += 2; }
+                } else {
+                    self.add_token_helper(TokenType::Slash);
                 }
             },
             ' ' | '\r' | '\t' => (),
