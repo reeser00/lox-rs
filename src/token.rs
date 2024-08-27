@@ -3,9 +3,9 @@ use crate::literal::Literal;
 
 #[derive(Debug, Clone)]
 pub struct Token {
-    token_type: TokenType,
+    pub token_type: TokenType,
     pub lexeme: String,
-    literal: Literal,
+    pub literal: Literal,
     line: usize,
 }
 

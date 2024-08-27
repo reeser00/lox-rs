@@ -9,6 +9,7 @@ pub mod scanner;
 pub mod expr;
 pub mod error;
 pub mod ast_printer;
+pub mod parser;
 
 use token::Token;
 use scanner::Scanner;
