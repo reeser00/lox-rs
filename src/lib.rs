@@ -12,7 +12,11 @@ pub mod ast_printer;
 pub mod parser;
 
 use token::Token;
+use token_type::TokenType;
+use expr::Expr;
 use scanner::Scanner;
+use parser::Parser;
+use ast_printer::AstPrinter;
 
 pub struct Lox {
     had_error: bool
@@ -69,11 +73,16 @@ impl Lox {
     fn run(&mut self, source: String) {
         let mut scanner: Scanner = Scanner::new(source, self);
         let tokens: Vec<Token> = scanner.scan_tokens();
+        
+        let mut parser: Parser = Parser::new(tokens, self);
+        let expression: Expr = parser.parse();
+        
+        if self.had_error { return; }
 
-        for token in tokens {
-            println!("{:?}", token);
-        }
+        let mut ast_printer = AstPrinter {};
+        let print_result = ast_printer.print(expression).unwrap();
 
+        println!("{}", print_result);
     }
 
     fn error(&mut self, line: usize, message: String) {
@@ -84,6 +93,16 @@ impl Lox {
         eprintln!(
             "[line {}] Error {}: {}", line, location, message
         );
+
+        self.had_error = true;
+    }
+
+    fn parse_error(&mut self, token: Token, message: String) {
+        if token.token_type == TokenType::Eof {
+            eprintln!("{} at end {}", token.line, message);
+        } else {
+            eprintln!("{} at '{}'{}", token.line, token.lexeme, message);
+        }
 
         self.had_error = true;
     }
